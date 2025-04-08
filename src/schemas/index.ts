@@ -835,6 +835,98 @@ export type TypeDefinition = {
 	identifier: string
 }
 
+// --- Effective Settings Interfaces (Post-Merge) ---
+// These interfaces represent the final settings structure after merging
+// .roodefaults, user settings, and secrets. They are used for type safety
+// within the application logic (e.g., passed to ClineProvider).
+
+export interface EffectiveApiConfig {
+	apiProvider?: ProviderName // Use existing ProviderName type
+	apiModelId?: string
+	openRouterApiKey?: string // May hold actual key or indicator/placeholder if from secret
+	openRouterModelId?: string
+	geminiApiKey?: string // May hold actual key or indicator/placeholder if from secret
+	requestyApiKey?: string // May hold actual key or indicator/placeholder if from secret
+	requestyModelId?: string
+	// Include other relevant fields from ProviderSettings that might be part of a profile
+	apiKey?: string
+	anthropicBaseUrl?: string
+	glamaModelId?: string
+	glamaModelInfo?: ModelInfo | null
+	glamaApiKey?: string
+	openRouterModelInfo?: ModelInfo | null
+	openRouterBaseUrl?: string
+	openRouterSpecificProvider?: string
+	openRouterUseMiddleOutTransform?: boolean
+	awsAccessKey?: string
+	awsSecretKey?: string
+	awsSessionToken?: string
+	awsRegion?: string
+	awsUseCrossRegionInference?: boolean
+	awsUsePromptCache?: boolean
+	awspromptCacheId?: string
+	awsProfile?: string
+	awsUseProfile?: boolean
+	awsCustomArn?: string
+	vertexKeyFile?: string
+	vertexJsonCredentials?: string
+	vertexProjectId?: string
+	vertexRegion?: string
+	openAiBaseUrl?: string
+	openAiApiKey?: string
+	openAiR1FormatEnabled?: boolean
+	openAiModelId?: string
+	openAiCustomModelInfo?: ModelInfo | null
+	openAiUseAzure?: boolean
+	azureApiVersion?: string
+	openAiStreamingEnabled?: boolean
+	ollamaModelId?: string
+	ollamaBaseUrl?: string
+	vsCodeLmModelSelector?: {
+		vendor?: string
+		family?: string
+		version?: string
+		id?: string
+	}
+	lmStudioModelId?: string
+	lmStudioBaseUrl?: string
+	lmStudioDraftModelId?: string
+	lmStudioSpeculativeDecodingEnabled?: boolean
+	googleGeminiBaseUrl?: string
+	openAiNativeApiKey?: string
+	mistralApiKey?: string
+	mistralCodestralUrl?: string
+	deepSeekBaseUrl?: string
+	deepSeekApiKey?: string
+	unboundApiKey?: string
+	unboundModelId?: string
+	unboundModelInfo?: ModelInfo | null
+	requestyModelInfo?: ModelInfo | null
+	modelTemperature?: number | null // Keep temperature here as it's often per-profile
+	modelMaxTokens?: number
+	modelMaxThinkingTokens?: number
+	includeMaxTokens?: boolean
+	fakeAi?: unknown
+}
+
+export interface EffectiveProviderProfiles {
+	currentApiConfigName?: string
+	apiConfigs?: {
+		[key: string]: EffectiveApiConfig
+	}
+}
+
+// Use the existing GlobalSettings type for effective global settings,
+// as the structure should be the same after merging.
+// If specific fields need different handling post-merge, define a separate interface.
+export type EffectiveGlobalSettings = GlobalSettings
+
+export interface EffectiveRooCodeSettings {
+	providerProfiles?: EffectiveProviderProfiles
+	globalSettings?: EffectiveGlobalSettings
+	// Add any other top-level settings categories if they exist
+}
+
 export const typeDefinitions: TypeDefinition[] = [
 	{ schema: providerSettingsSchema, identifier: "ProviderSettings" },
 	{ schema: globalSettingsSchema, identifier: "GlobalSettings" },

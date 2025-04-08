@@ -9,7 +9,8 @@ import axios from "axios"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 
-import { GlobalState, ProviderSettings, RooCodeSettings } from "../../schemas"
+import { GlobalState, ProviderSettings, RooCodeSettings, EffectiveRooCodeSettings } from "../../schemas" // Added EffectiveRooCodeSettings
+// Remove RooDefaultSettings import as it's no longer directly used here
 import { t } from "../../i18n"
 import { setPanel } from "../../activate/registerCommands"
 import {
@@ -86,14 +87,18 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 	public readonly contextProxy: ContextProxy
 	public readonly providerSettingsManager: ProviderSettingsManager
 	public readonly customModesManager: CustomModesManager
+	// Remove defaultOverrides, as merging now happens in extension.ts
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
 		// not private, so it can be accessed from webviewMessageHandler
 		readonly outputChannel: vscode.OutputChannel,
 		private readonly renderContext: "sidebar" | "editor" = "sidebar",
+		// Added effectiveSettings parameter for .roodefaults
+		private readonly effectiveSettings: EffectiveRooCodeSettings = {}, // Use the merged settings type
 	) {
-		super()
+		super() // Moved super() to the first line
+		// No need to store overrides separately anymore
 
 		this.outputChannel.appendLine("ClineProvider instantiated")
 		this.contextProxy = new ContextProxy(context)
@@ -1279,6 +1284,16 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 		if (!providerSettings.apiProvider) {
 			providerSettings.apiProvider = apiProvider
 		}
+
+		// --- Merge .roodefaults overrides ---
+		const currentProvider = providerSettings.apiProvider
+
+		// Apply defaultModel based on the current provider, only if not set by user
+		// --- Redundant default application logic removed ---
+		// The merging logic in extension.ts now handles applying defaults
+		// before the ClineProvider is even initialized. The `providerSettings`
+		// object retrieved above already contains the final merged values.
+		// --- End Merge .roodefaults overrides ---
 
 		// Return the same structure as before
 		return {
