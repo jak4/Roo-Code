@@ -14,9 +14,11 @@ import {
 	providerSettingsSchema,
 	globalSettingsSchema,
 	isSecretStateKey,
+	EffectiveRooCodeSettings,
 } from "../../schemas"
 import { logger } from "../../utils/logging"
 import { telemetryService } from "../../services/telemetry/TelemetryService"
+import { RooDefaultSettings } from "./defaultSettingsLoader"
 
 type GlobalStateKey = keyof GlobalState
 type SecretStateKey = keyof SecretState
@@ -39,7 +41,12 @@ export class ContextProxy {
 	private secretCache: SecretState
 	private _isInitialized = false
 
-	constructor(context: vscode.ExtensionContext) {
+	//constructor(context: vscode.ExtensionContext, private readonly effectiveSettings: EffectiveRooCodeSettings, private readonly outputChannel: vscode.OutputChannel) {
+	constructor(
+		context: vscode.ExtensionContext,
+		private readonly effectiveSettings: RooDefaultSettings,
+		private readonly outputChannel: vscode.OutputChannel,
+	) {
 		this.originalContext = context
 		this.stateCache = {}
 		this.secretCache = {}
@@ -51,14 +58,15 @@ export class ContextProxy {
 	}
 
 	public async initialize() {
+		// Then load from context to override
 		for (const key of GLOBAL_STATE_KEYS) {
 			try {
 				this.stateCache[key] = this.originalContext.globalState.get(key)
+				this.outputChannel.appendLine(`context: ${key} : ${this.originalContext.globalState.get(key)}`)
 			} catch (error) {
 				logger.error(`Error loading global ${key}: ${error instanceof Error ? error.message : String(error)}`)
 			}
 		}
-
 		const promises = SECRET_STATE_KEYS.map(async (key) => {
 			try {
 				this.secretCache[key] = await this.originalContext.secrets.get(key)
@@ -67,9 +75,38 @@ export class ContextProxy {
 			}
 		})
 
+		// Load from effectiveSettings first
+		if (this.effectiveSettings) {
+			if (this.effectiveSettings.state) {
+				for (const key in this.effectiveSettings.state) {
+					if (Object.prototype.hasOwnProperty.call(this.effectiveSettings.state, key)) {
+						this.outputChannel.appendLine(
+							`effectiveSettings.sate: ${key} : ${(this.effectiveSettings.state as any)[key]}`,
+						)
+						;(this.stateCache as any)[key] = (this.effectiveSettings.state as any)[key]
+					}
+				}
+			}
+			if (this.effectiveSettings.secrets) {
+				for (const key in this.effectiveSettings.secrets) {
+					if (Object.prototype.hasOwnProperty.call(this.effectiveSettings.secrets, key)) {
+						this.outputChannel.appendLine(
+							`effectiveSettings: ${key} : ${(this.effectiveSettings.secrets as any)[key]}`,
+						)
+						;(this.secretCache as any)[key] = (this.effectiveSettings.secrets as any)[key]
+					}
+				}
+			}
+		}
+
 		await Promise.all(promises)
 
 		this._isInitialized = true
+		this.outputChannel.appendLine(`ContextProxy initialized with stateCache: ${JSON.stringify(this.stateCache)}`)
+		this.outputChannel.appendLine(
+			`#################################################################################`,
+		)
+		this.outputChannel.appendLine(`ContextProxy initialized with secretCache: ${JSON.stringify(this.secretCache)}`)
 	}
 
 	public get extensionUri() {

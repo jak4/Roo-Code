@@ -922,9 +922,10 @@ export interface EffectiveProviderProfiles {
 export type EffectiveGlobalSettings = GlobalSettings
 
 export interface EffectiveRooCodeSettings {
-	providerProfiles?: EffectiveProviderProfiles
-	globalSettings?: EffectiveGlobalSettings
-	// Add any other top-level settings categories if they exist
+	apiProvider?: ProviderName
+	currentApiConfigName?: string
+	mode?: string
+	apiModelId?: string
 }
 
 export const typeDefinitions: TypeDefinition[] = [

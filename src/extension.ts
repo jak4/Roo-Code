@@ -31,13 +31,7 @@ import { telemetryService } from "./services/telemetry/TelemetryService"
 import { TerminalRegistry } from "./integrations/terminal/TerminalRegistry"
 import { API } from "./exports/api"
 import { migrateSettings } from "./utils/migrateSettings"
-import {
-	loadDefaultSettings,
-	RooDefaultSettings,
-	RooDefaultGlobalSettings,
-	RooDefaultProviderProfiles,
-	RooDefaultApiConfig,
-} from "./core/config/defaultSettingsLoader" // Updated import
+import { loadDefaultSettings, RooDefaultSettings, RooDefaultStateSettings } from "./core/config/defaultSettingsLoader" // Updated import
 
 import { handleUri, registerCommands, registerCodeActions, registerTerminalActions } from "./activate"
 import { formatLanguage } from "./shared/language"
@@ -62,7 +56,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine("Roo-Code extension activated")
 
 	// Load default settings from .roodefaults
-	const defaultSettings = await loadDefaultSettings()
+	const defaultSettings = await loadDefaultSettings(outputChannel)
 
 	// Migrate old settings to new
 	await migrateSettings(context, outputChannel)
@@ -78,7 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// --- Merge settings from .roodefaults and user configuration ---
 	const userConfig = vscode.workspace.getConfiguration("roo-code")
-	const effectiveSettings = await mergeRooCodeSettings(defaultSettings, userConfig, context.secrets, outputChannel)
+	// const effectiveSettings = await mergeRooCodeSettings(defaultSettings, userConfig, context.secrets, outputChannel)
 	// --- End Merge settings ---
 
 	// TODO: Modify ClineProvider constructor/init to accept and use effectiveSettings
@@ -87,7 +81,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Note: ClineProvider's constructor or an init method might need adjustment
 	// to accept this potentially more complex 'effectiveSettings' structure.
 	// For now, we assume it can handle the structure derived from merging.
-	const provider = new ClineProvider(context, outputChannel, "sidebar", effectiveSettings)
+	const provider = new ClineProvider(context, outputChannel, "sidebar", defaultSettings)
+	await provider.contextProxy.initialize()
 	telemetryService.setProvider(provider)
 
 	context.subscriptions.push(
@@ -168,228 +163,84 @@ export async function deactivate() {
  * @param outputChannel Channel for logging messages.
  * @returns A promise resolving to the merged effective settings.
  */
-async function mergeRooCodeSettings(
-	defaultSettings: RooDefaultSettings | null,
-	userConfig: vscode.WorkspaceConfiguration,
-	secrets: vscode.SecretStorage,
-	outputChannel: vscode.OutputChannel,
-): Promise<EffectiveRooCodeSettings> {
-	const effectiveSettings: EffectiveRooCodeSettings = {
-		providerProfiles: { apiConfigs: {} }, // Initialize nested structures
-		globalSettings: {},
-	}
+// async function mergeRooCodeSettings(
+// 	defaultSettings: RooDefaultSettings | null,
+// 	userConfig: vscode.WorkspaceConfiguration,
+// 	secrets: vscode.SecretStorage,
+// 	outputChannel: vscode.OutputChannel,
+// ): Promise<RooDefaultSettings> {
+// 	const effectiveSettings: RooDefaultSettings = {
+// 		state: {
+// 			apiProvider: "anthropic", // Default value
+// 			currentApiConfigName: "nix", // Default value
+// 			mode: "nix", // Default value
+// 			apiModelId: "nix"
+// 		},
+// 		secrets: {}
+// 	};
 
-	// Helper to check if a user has configured a specific setting
-	const hasUserConfig = (key: string): boolean => {
-		const inspection = userConfig.inspect(key)
-		return inspection?.globalValue !== undefined || inspection?.workspaceValue !== undefined
-	}
+// 	// Helper to check if a user has configured a specific setting
+// 	const hasUserConfig = (key: string): boolean => {
+// 		const inspection = userConfig.inspect(key)
+// 		return inspection?.globalValue !== undefined || inspection?.workspaceValue !== undefined
+// 	}
 
-	// Helper to get user config value (preference to workspace over global)
-	const getUserConfigValue = <T>(key: string): T | undefined => {
-		return userConfig.get<T>(key)
-	}
+// 	// Helper to get user config value (preference to workspace over global)
+// 	const getUserConfigValue = <T>(key: string): T | undefined => {
+// 		return userConfig.get<T>(key)
+// 	}
 
-	// Helper to log applied defaults
-	const logAppliedDefault = (key: string, value: any) => {
-		// Avoid logging sensitive values directly
-		const displayValue =
-			typeof value === "string" && (key.toLowerCase().includes("apikey") || key.toLowerCase().includes("secret"))
-				? "********"
-				: JSON.stringify(value)
-		logger.info(`Applying default setting from .roodefaults: ${key} = ${displayValue}`)
-		// Also log to output channel for visibility during activation
-		outputChannel.appendLine(`Applying default setting from .roodefaults: ${key}`)
-	}
+// 	// Helper to log applied defaults
+// 	const logAppliedDefault = (key: string, value: any) => {
+// 		// Avoid logging sensitive values directly
+// 		const displayValue =
+// 			typeof value === "string" && (key.toLowerCase().includes("apikey") || key.toLowerCase().includes("secret"))
+// 				? "********"
+// 				: JSON.stringify(value)
+// 		logger.info(`Applying default setting from .roodefaults: ${key} = ${displayValue}`)
+// 		// Also log to output channel for visibility during activation
+// 		outputChannel.appendLine(`Applying default setting from .roodefaults: ${key}`)
+// 	}
 
-	// --- Merge Global Settings ---
-	const effectiveGlobal: EffectiveGlobalSettings = {} // Start with empty effective global settings
-	if (defaultSettings?.globalSettings) {
-		const defaultGlobal = defaultSettings.globalSettings
-		for (const key in defaultGlobal) {
-			if (Object.prototype.hasOwnProperty.call(defaultGlobal, key)) {
-				const typedKey = key as keyof RooDefaultGlobalSettings
-				const fullKey = `globalSettings.${typedKey}`
-				const defaultValue = defaultGlobal[typedKey]
+// 	// --- Merge Settings ---
+// 	if (defaultSettings) {
+// 		if (defaultSettings.state?.mode) {
+// 			effectiveSettings.mode = defaultSettings.state.mode;
+// 			logAppliedDefault("globalSettings.mode", defaultSettings.state.mode);
+// 		}
 
-				if (hasUserConfig(fullKey)) {
-					// User config takes precedence
-					const userValue = getUserConfigValue<any>(fullKey) // Get value as any
-					if (userValue !== undefined) {
-						;(effectiveGlobal as any)[typedKey] = userValue // Assign using 'any' assertion
-					} else if (defaultValue !== undefined) {
-						// Fallback to default if user config somehow returns undefined for an existing key
-						;(effectiveGlobal as any)[typedKey] = defaultValue // Assign using 'any' assertion
-					}
-				} else if (defaultValue !== undefined) {
-					// Apply default if no user config
-					;(effectiveGlobal as any)[typedKey] = defaultValue // Assign using 'any' assertion
-					logAppliedDefault(fullKey, defaultValue)
-				}
-			}
-		}
-	}
-	// Ensure essential global settings from user config are included even if not in defaults
-	const userGlobalConfig = userConfig.get<object>("globalSettings")
-	if (userGlobalConfig) {
-		for (const key in userGlobalConfig) {
-			if (Object.prototype.hasOwnProperty.call(userGlobalConfig, key)) {
-				const typedKey = key as keyof EffectiveGlobalSettings
-				if (effectiveGlobal[typedKey] === undefined) {
-					// Only add if not already set by defaults/specific user check
-					effectiveGlobal[typedKey] = (userGlobalConfig as any)[key]
-				}
-			}
-		}
-	}
+// 		if (defaultSettings.state?.currentApiConfigName) {
+// 			effectiveSettings.currentApiConfigName = defaultSettings.state.currentApiConfigName;
+// 			logAppliedDefault("providerProfiles.currentApiConfigName", defaultSettings.state.currentApiConfigName);
+// 		}
 
-	effectiveSettings.globalSettings = effectiveGlobal // Assign the merged global settings object
-	// Ensure essential global settings have final fallbacks if still missing
-	if (effectiveSettings.globalSettings?.mode === undefined) {
-		effectiveSettings.globalSettings!.mode = "code" // Default mode if nothing else specified
-	}
-	// Add other essential fallbacks if needed
+// 		if (defaultSettings.state?.apiProvider) {
+// 			effectiveSettings.apiProvider = defaultSettings.state.apiProvider as ProviderName;
+// 			logAppliedDefault("providerProfiles.apiConfigs.default.apiProvider", defaultSettings.state.apiProvider);
+// 		}
 
-	// --- Merge Provider Profiles ---
-	if (defaultSettings?.providerProfiles) {
-		// currentApiConfigName
-		const currentApiConfigNameKey = "providerProfiles.currentApiConfigName"
-		if (hasUserConfig(currentApiConfigNameKey)) {
-			effectiveSettings.providerProfiles!.currentApiConfigName = getUserConfigValue(currentApiConfigNameKey)
-		} else if (defaultSettings.providerProfiles.currentApiConfigName !== undefined) {
-			effectiveSettings.providerProfiles!.currentApiConfigName =
-				defaultSettings.providerProfiles.currentApiConfigName
-			logAppliedDefault(currentApiConfigNameKey, defaultSettings.providerProfiles.currentApiConfigName)
-		}
+// 		if (defaultSettings.state?.apiModelId) {
+// 			effectiveSettings.apiModelId = defaultSettings.state.apiModelId;
+// 			logAppliedDefault("providerProfiles.apiConfigs.default.apiProvider", defaultSettings.state.apiProvider);
+// 		}
 
-		// apiConfigs - Merge default profiles first, then overlay user profiles
-		const effectiveApiConfigs: { [key: string]: EffectiveApiConfig } = {}
+// 	// 	// Add listApiConfigMeta from defaultSettings if it exists
+// 	// 	if (defaultSettings.globalSettings?.listApiConfigMeta) {
+// 	// 		effectiveSettings.listApiConfigMeta = defaultSettings.globalSettings.listApiConfigMeta;
+// 	// 		logAppliedDefault("globalSettings.listApiConfigMeta", defaultSettings.globalSettings.listApiConfigMeta);
+// 	// 	}
+// 	}
 
-		// 1. Apply defaults
-		if (defaultSettings.providerProfiles.apiConfigs) {
-			for (const profileName in defaultSettings.providerProfiles.apiConfigs) {
-				if (Object.prototype.hasOwnProperty.call(defaultSettings.providerProfiles.apiConfigs, profileName)) {
-					const defaultProfile = defaultSettings.providerProfiles.apiConfigs[profileName]
-					const effectiveProfile: EffectiveApiConfig = {} // Start fresh for each profile
+// 	// --- Overlay User Config and Secrets (takes precedence) ---
+// 	if (hasUserConfig("mode")) {
+// 		effectiveSettings.mode = getUserConfigValue<string>("mode") ?? effectiveSettings.mode;
+// 	}
+// 	if (hasUserConfig("currentApiConfigName")) {
+// 		effectiveSettings.currentApiConfigName = getUserConfigValue<string>("currentApiConfigName") ?? effectiveSettings.currentApiConfigName;
+// 	}
+// 	if (hasUserConfig("apiProvider")) {
+// 		effectiveSettings.apiProvider = getUserConfigValue<ProviderName>("apiProvider") ?? effectiveSettings.apiProvider;
+// 	}
 
-					for (const key in defaultProfile) {
-						if (Object.prototype.hasOwnProperty.call(defaultProfile, key)) {
-							const typedKey = key as keyof RooDefaultApiConfig
-							const fullKey = `providerProfiles.apiConfigs.${profileName}.${typedKey}`
-							const defaultValue = defaultProfile[typedKey]
-
-							if (defaultValue !== undefined) {
-								if (typedKey === "apiProvider") {
-									// Ensure the default value is a valid ProviderName before assigning
-									if (providerNames.includes(defaultValue as ProviderName)) {
-										effectiveProfile.apiProvider = defaultValue as ProviderName
-									} else {
-										logger.warn(
-											`Invalid default apiProvider '${defaultValue}' found in .roodefaults for profile '${profileName}'. Skipping.`,
-										)
-									}
-								} else {
-									// Use 'as any' for other dynamic assignments
-									;(effectiveProfile as any)[typedKey] = defaultValue
-								}
-								// Log potential application (only if value was actually assigned)
-								if ((effectiveProfile as any)[typedKey] !== undefined) {
-									logAppliedDefault(fullKey, defaultValue)
-								}
-							}
-						}
-					}
-					effectiveApiConfigs[profileName] = effectiveProfile // Add profile with defaults applied
-				}
-			}
-		}
-
-		// 2. Overlay User Config and Secrets (takes precedence)
-		const userProfiles = userConfig.get<{ [key: string]: any }>("providerProfiles.apiConfigs")
-		if (userProfiles) {
-			for (const profileName in userProfiles) {
-				if (Object.prototype.hasOwnProperty.call(userProfiles, profileName)) {
-					const userProfile = userProfiles[profileName]
-					if (!effectiveApiConfigs[profileName]) {
-						effectiveApiConfigs[profileName] = {} // Initialize if profile only exists in user config
-					}
-					const effectiveProfile = effectiveApiConfigs[profileName]
-
-					for (const key in userProfile) {
-						if (Object.prototype.hasOwnProperty.call(userProfile, key)) {
-							const typedKey = key as keyof EffectiveApiConfig
-							const fullKey = `providerProfiles.apiConfigs.${profileName}.${typedKey}`
-							const secretKey = `roo-code.${fullKey}`
-							const userValue = userProfile[key]
-
-							// Check secrets first for API keys
-							if (typedKey.toLowerCase().includes("apikey")) {
-								const secretValue = await secrets.get(secretKey)
-								if (secretValue !== undefined) {
-									;(effectiveProfile as any)[typedKey] = secretValue // Use 'as any' for assignment
-									logger.debug(`Using secret value for ${fullKey}`)
-									continue // Move to next key for this profile
-								}
-							}
-
-							// Apply user config value (overrides default)
-							if (userValue !== undefined) {
-								// Use 'as any' for assignment
-								;(effectiveProfile as any)[typedKey] = userValue
-								logger.debug(`Using user config value for ${fullKey}`)
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// 3. Final check for secrets for profiles defined *only* in defaults (user config didn't override)
-		if (defaultSettings?.providerProfiles?.apiConfigs) {
-			for (const profileName in defaultSettings.providerProfiles.apiConfigs) {
-				if (effectiveApiConfigs[profileName] && (!userProfiles || !userProfiles[profileName])) {
-					// Profile exists from defaults, but not touched by user config overlay loop
-					const effectiveProfile = effectiveApiConfigs[profileName]
-					for (const key in effectiveProfile) {
-						if (Object.prototype.hasOwnProperty.call(effectiveProfile, key)) {
-							const typedKey = key as keyof EffectiveApiConfig
-							if (typedKey.toLowerCase().includes("apikey")) {
-								const fullKey = `providerProfiles.apiConfigs.${profileName}.${typedKey}`
-								const secretKey = `roo-code.${fullKey}`
-								const secretValue = await secrets.get(secretKey)
-								if (secretValue !== undefined) {
-									;(effectiveProfile as any)[typedKey] = secretValue // Use 'as any' for assignment
-									logger.debug(`Using secret value for ${fullKey} (default profile)`)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		effectiveSettings.providerProfiles!.apiConfigs = effectiveApiConfigs
-	}
-	// Ensure a default profile exists if none configured by user or defaults
-	if (Object.keys(effectiveSettings.providerProfiles?.apiConfigs ?? {}).length === 0) {
-		effectiveSettings.providerProfiles!.apiConfigs!["default"] = { apiProvider: "gemini" } // Basic fallback
-		effectiveSettings.providerProfiles!.currentApiConfigName = "default"
-		logger.info("No provider profiles configured, creating a basic 'default' profile.")
-	}
-	if (
-		!effectiveSettings.providerProfiles?.currentApiConfigName &&
-		Object.keys(effectiveSettings.providerProfiles?.apiConfigs ?? {}).length > 0
-	) {
-		// If configs exist but no current name, pick the first one
-		effectiveSettings.providerProfiles!.currentApiConfigName = Object.keys(
-			effectiveSettings.providerProfiles!.apiConfigs!,
-		)[0]
-		logger.info(
-			`No current API config name set, defaulting to '${effectiveSettings.providerProfiles!.currentApiConfigName}'.`,
-		)
-	}
-
-	logger.info("Finished merging Roo-Code settings.")
-	// console.log("Effective Settings:", JSON.stringify(effectiveSettings, null, 2)); // DEBUG: Log final settings
-	return effectiveSettings
-}
+// 	return effectiveSettings;
+// }

@@ -21,7 +21,7 @@ export async function loadRuleFiles(cwd: string): Promise<string> {
 	let combinedRules = ""
 
 	for (const file of ruleFiles) {
-		const content = await safeReadFile(path.join(cwd, file))
+		const content = await safeReadFile(`${cwd}/${file}`)
 		if (content) {
 			combinedRules += `\n# Rules from ${file}:\n${content}\n`
 		}
@@ -43,7 +43,7 @@ export async function addCustomInstructions(
 	let modeRuleContent = ""
 	if (mode) {
 		const modeRuleFile = `.clinerules-${mode}`
-		modeRuleContent = await safeReadFile(path.join(cwd, modeRuleFile))
+		modeRuleContent = await safeReadFile(`${cwd}/${modeRuleFile}`)
 	}
 
 	// Add language preference if provided

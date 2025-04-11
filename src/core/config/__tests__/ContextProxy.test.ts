@@ -51,8 +51,12 @@ describe("ContextProxy", () => {
 			extensionMode: vscode.ExtensionMode.Development,
 		}
 
+		const mockOutputChannel = {
+			appendLine: jest.fn(),
+		}
+
 		// Create proxy instance
-		proxy = new ContextProxy(mockContext)
+		proxy = new ContextProxy(mockContext, {}, mockOutputChannel as any)
 		await proxy.initialize()
 	})
 

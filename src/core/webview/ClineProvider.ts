@@ -54,6 +54,7 @@ import { telemetryService } from "../../services/telemetry/TelemetryService"
 import { getWorkspacePath } from "../../utils/path"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { WebviewMessage } from "../../shared/WebviewMessage"
+import { RooDefaultSettings } from "../config/defaultSettingsLoader"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -95,13 +96,13 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 		readonly outputChannel: vscode.OutputChannel,
 		private readonly renderContext: "sidebar" | "editor" = "sidebar",
 		// Added effectiveSettings parameter for .roodefaults
-		private readonly effectiveSettings: EffectiveRooCodeSettings = {}, // Use the merged settings type
+		private readonly rooDefaultSettings: RooDefaultSettings = {}, // Use the merged settings type
 	) {
 		super() // Moved super() to the first line
 		// No need to store overrides separately anymore
 
 		this.outputChannel.appendLine("ClineProvider instantiated")
-		this.contextProxy = new ContextProxy(context)
+		this.contextProxy = new ContextProxy(context, rooDefaultSettings, outputChannel)
 		ClineProvider.activeInstances.add(this)
 
 		// Register this provider with the telemetry service to enable it to add
