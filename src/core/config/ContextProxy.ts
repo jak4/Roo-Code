@@ -70,6 +70,12 @@ export class ContextProxy {
 		const promises = SECRET_STATE_KEYS.map(async (key) => {
 			try {
 				this.secretCache[key] = await this.originalContext.secrets.get(key)
+				if (Object.prototype.hasOwnProperty.call(this.effectiveSettings.secrets, key)) {
+					this.outputChannel.appendLine(
+						`effectiveSettings.secret: ${key} : ${(this.effectiveSettings.secrets as any)[key]}`,
+					)
+					;(this.secretCache as any)[key] = (this.effectiveSettings.secrets as any)[key]
+				}
 			} catch (error) {
 				logger.error(`Error loading secret ${key}: ${error instanceof Error ? error.message : String(error)}`)
 			}
@@ -81,19 +87,9 @@ export class ContextProxy {
 				for (const key in this.effectiveSettings.state) {
 					if (Object.prototype.hasOwnProperty.call(this.effectiveSettings.state, key)) {
 						this.outputChannel.appendLine(
-							`effectiveSettings.sate: ${key} : ${(this.effectiveSettings.state as any)[key]}`,
+							`effectiveSettings.state: ${key} : ${(this.effectiveSettings.state as any)[key]}`,
 						)
 						;(this.stateCache as any)[key] = (this.effectiveSettings.state as any)[key]
-					}
-				}
-			}
-			if (this.effectiveSettings.secrets) {
-				for (const key in this.effectiveSettings.secrets) {
-					if (Object.prototype.hasOwnProperty.call(this.effectiveSettings.secrets, key)) {
-						this.outputChannel.appendLine(
-							`effectiveSettings: ${key} : ${(this.effectiveSettings.secrets as any)[key]}`,
-						)
-						;(this.secretCache as any)[key] = (this.effectiveSettings.secrets as any)[key]
 					}
 				}
 			}
