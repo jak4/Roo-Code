@@ -14,6 +14,7 @@ import {
 	Globe,
 	Info,
 	LucideIcon,
+	Monitor,
 } from "lucide-react"
 import { CaretSortIcon } from "@radix-ui/react-icons"
 
@@ -47,6 +48,7 @@ import ApiOptions from "./ApiOptions"
 import { AutoApproveSettings } from "./AutoApproveSettings"
 import { BrowserSettings } from "./BrowserSettings"
 import { CheckpointSettings } from "./CheckpointSettings"
+import { InterfaceSettings } from "./InterfaceSettings"
 import { NotificationSettings } from "./NotificationSettings"
 import { ContextManagementSettings } from "./ContextManagementSettings"
 import { TerminalSettings } from "./TerminalSettings"
@@ -65,6 +67,7 @@ const sectionNames = [
 	"autoApprove",
 	"browser",
 	"checkpoints",
+	"interface",
 	"notifications",
 	"contextManagement",
 	"terminal",
@@ -119,7 +122,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		maxOpenTabsContext,
 		maxWorkspaceFiles,
 		mcpEnabled,
-		rateLimitSeconds,
 		requestDelaySeconds,
 		remoteBrowserHost,
 		screenshotQuality,
@@ -130,10 +132,17 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		telemetrySetting,
 		terminalOutputLineLimit,
 		terminalShellIntegrationTimeout,
+		terminalCommandDelay,
+		terminalPowershellCounter,
+		terminalZshClearEolMark,
+		terminalZshOhMy,
+		terminalZshP10k,
+		terminalZdotdir,
 		writeDelayMs,
 		showRooIgnoredFiles,
 		remoteBrowserEnabled,
 		maxReadFileLine,
+		showGreeting,
 	} = cachedState
 
 	// Make sure apiConfiguration is initialized and managed by SettingsView.
@@ -238,10 +247,15 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "screenshotQuality", value: screenshotQuality ?? 75 })
 			vscode.postMessage({ type: "terminalOutputLineLimit", value: terminalOutputLineLimit ?? 500 })
 			vscode.postMessage({ type: "terminalShellIntegrationTimeout", value: terminalShellIntegrationTimeout })
+			vscode.postMessage({ type: "terminalCommandDelay", value: terminalCommandDelay })
+			vscode.postMessage({ type: "terminalPowershellCounter", bool: terminalPowershellCounter })
+			vscode.postMessage({ type: "terminalZshClearEolMark", bool: terminalZshClearEolMark })
+			vscode.postMessage({ type: "terminalZshOhMy", bool: terminalZshOhMy })
+			vscode.postMessage({ type: "terminalZshP10k", bool: terminalZshP10k })
+			vscode.postMessage({ type: "terminalZdotdir", bool: terminalZdotdir })
 			vscode.postMessage({ type: "mcpEnabled", bool: mcpEnabled })
 			vscode.postMessage({ type: "alwaysApproveResubmit", bool: alwaysApproveResubmit })
 			vscode.postMessage({ type: "requestDelaySeconds", value: requestDelaySeconds })
-			vscode.postMessage({ type: "rateLimitSeconds", value: rateLimitSeconds })
 			vscode.postMessage({ type: "maxOpenTabsContext", value: maxOpenTabsContext })
 			vscode.postMessage({ type: "maxWorkspaceFiles", value: maxWorkspaceFiles ?? 200 })
 			vscode.postMessage({ type: "showRooIgnoredFiles", bool: showRooIgnoredFiles })
@@ -252,6 +266,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "alwaysAllowSubtasks", bool: alwaysAllowSubtasks })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
+			vscode.postMessage({ type: "showGreeting", bool: showGreeting })
 			setChangeDetected(false)
 		}
 	}
@@ -280,6 +295,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 	const autoApproveRef = useRef<HTMLDivElement>(null)
 	const browserRef = useRef<HTMLDivElement>(null)
 	const checkpointsRef = useRef<HTMLDivElement>(null)
+	const interfaceRef = useRef<HTMLDivElement>(null)
 	const notificationsRef = useRef<HTMLDivElement>(null)
 	const contextManagementRef = useRef<HTMLDivElement>(null)
 	const terminalRef = useRef<HTMLDivElement>(null)
@@ -294,6 +310,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			{ id: "autoApprove", icon: CheckCheck, ref: autoApproveRef },
 			{ id: "browser", icon: SquareMousePointer, ref: browserRef },
 			{ id: "checkpoints", icon: GitBranch, ref: checkpointsRef },
+			{ id: "interface", icon: Monitor, ref: interfaceRef },
 			{ id: "notifications", icon: Bell, ref: notificationsRef },
 			{ id: "contextManagement", icon: Database, ref: contextManagementRef },
 			{ id: "terminal", icon: SquareTerminal, ref: terminalRef },
@@ -307,6 +324,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			autoApproveRef,
 			browserRef,
 			checkpointsRef,
+			interfaceRef,
 			notificationsRef,
 			contextManagementRef,
 			terminalRef,
@@ -459,6 +477,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					/>
 				</div>
 
+				<div ref={interfaceRef}>
+					<InterfaceSettings showGreeting={showGreeting} setCachedStateField={setCachedStateField} />
+				</div>
+
 				<div ref={notificationsRef}>
 					<NotificationSettings
 						ttsEnabled={ttsEnabled}
@@ -483,13 +505,18 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					<TerminalSettings
 						terminalOutputLineLimit={terminalOutputLineLimit}
 						terminalShellIntegrationTimeout={terminalShellIntegrationTimeout}
+						terminalCommandDelay={terminalCommandDelay}
+						terminalPowershellCounter={terminalPowershellCounter}
+						terminalZshClearEolMark={terminalZshClearEolMark}
+						terminalZshOhMy={terminalZshOhMy}
+						terminalZshP10k={terminalZshP10k}
+						terminalZdotdir={terminalZdotdir}
 						setCachedStateField={setCachedStateField}
 					/>
 				</div>
 
 				<div ref={advancedRef}>
 					<AdvancedSettings
-						rateLimitSeconds={rateLimitSeconds}
 						diffEnabled={diffEnabled}
 						fuzzyMatchThreshold={fuzzyMatchThreshold}
 						setCachedStateField={setCachedStateField}

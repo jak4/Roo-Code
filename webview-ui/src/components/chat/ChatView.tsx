@@ -69,6 +69,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 		alwaysAllowSubtasks,
 		customModes,
 		telemetrySetting,
+		showGreeting,
 	} = useExtensionState()
 
 	//const task = messages.length > 0 ? (messages[0].say === "task" ? messages[0] : undefined) : undefined) : undefined
@@ -95,7 +96,6 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 	const [isAtBottom, setIsAtBottom] = useState(false)
 	const lastTtsRef = useRef<string>("")
-
 	const [wasStreaming, setWasStreaming] = useState<boolean>(false)
 	const [showCheckpointWarning, setShowCheckpointWarning] = useState<boolean>(false)
 
@@ -421,7 +421,6 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 			setTextAreaDisabled(true)
 			setClineAsk(undefined)
 			setEnableButtons(false)
-			disableAutoScrollRef.current = false
 		},
 		[clineAsk, startNewTask],
 	)
@@ -468,7 +467,6 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 			setTextAreaDisabled(true)
 			setClineAsk(undefined)
 			setEnableButtons(false)
-			disableAutoScrollRef.current = false
 		},
 		[clineAsk, startNewTask, isStreaming],
 	)
@@ -498,6 +496,9 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 							if (!isHidden && !textAreaDisabled && !enableButtons) {
 								textAreaRef.current?.focus()
 							}
+							break
+						case "focusInput":
+							textAreaRef.current?.focus()
 							break
 					}
 					break
@@ -1206,10 +1207,12 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					}}>
 					{telemetrySetting === "unset" && <TelemetryBanner />}
 					{showAnnouncement && <Announcement version={version} hideAnnouncement={hideAnnouncement} />}
-					<div style={{ padding: "0 20px", flexShrink: 0 }}>
-						<h2>{t("chat:greeting")}</h2>
-						<p>{t("chat:aboutMe")}</p>
-					</div>
+					{showGreeting === true && (
+						<div style={{ padding: "0 20px", flexShrink: 0 }}>
+							<h2>{t("chat:greeting")}</h2>
+							<p>{t("chat:aboutMe")}</p>
+						</div>
+					)}
 					{taskHistory.length > 0 && <HistoryPreview showHistoryView={showHistoryView} />}
 				</div>
 			)}
