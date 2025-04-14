@@ -70,6 +70,7 @@ export class ContextProxy {
 		const promises = SECRET_STATE_KEYS.map(async (key) => {
 			try {
 				this.secretCache[key] = await this.originalContext.secrets.get(key)
+				this.outputChannel.appendLine(`effectiveSettings.secret: ${key} : ${this.secretCache[key]}`)
 				if (Object.prototype.hasOwnProperty.call(this.effectiveSettings.secrets, key)) {
 					this.outputChannel.appendLine(
 						`effectiveSettings.secret: ${key} : ${(this.effectiveSettings.secrets as any)[key]}`,
